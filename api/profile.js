@@ -1,5 +1,5 @@
 // api/profile.js
-// Vercel Serverless Function – lấy thông tin TikTok user qua TikAPI (GET version)
+// Phiên bản TikAPI 2025 - GET /user/info/:username
 
 const fetch = require("node-fetch");
 
@@ -8,42 +8,38 @@ module.exports = async (req, res) => {
   const TIKAPI_KEY = process.env.TIKAPI_KEY;
 
   if (!TIKAPI_KEY) {
-    res.status(500).json({ error: "Server chưa cấu hình TIKAPI_KEY" });
-    return;
+    return res
+      .status(500)
+      .json({ error: "Server chưa cấu hình biến môi trường TIKAPI_KEY" });
   }
 
   if (!username) {
-    res.status(400).json({ error: "Thiếu username query param" });
-    return;
+    return res.status(400).json({ error: "Thiếu username query param" });
   }
 
   try {
-    // Dùng GET endpoint mới: /public/user/info?unique_id=username
-    const url = `https://api.tikapi.io/public/user/info?unique_id=${encodeURIComponent(
-      username
-    )}`;
+    // ✅ Endpoint đúng: /user/info/<username>
+    const url = `https://api.tikapi.io/user/info/${encodeURIComponent(username)}`;
 
     const apiResp = await fetch(url, {
-      method: "GET",
       headers: {
         "X-API-KEY": TIKAPI_KEY,
         Accept: "application/json",
       },
     });
 
-    const status = apiResp.status;
     const text = await apiResp.text();
+    const status = apiResp.status;
 
     if (!apiResp.ok) {
       console.error("TikAPI error:", status, text);
-      res
+      return res
         .status(502)
         .json({ error: `Third-party API lỗi: ${status}`, details: text });
-      return;
     }
 
     const data = JSON.parse(text);
-    const userRaw = data.data || data.user || data;
+    const userRaw = data.user || data.data || data;
 
     const result = {
       username:
@@ -69,9 +65,9 @@ module.exports = async (req, res) => {
     };
 
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-    res.status(200).json(result);
+    return res.status(200).json(result);
   } catch (err) {
     console.error("Server error:", err);
-    res.status(500).json({ error: err.message || "Lỗi server nội bộ" });
+    return res.status(500).json({ error: err.message || "Lỗi server nội bộ" });
   }
 };
