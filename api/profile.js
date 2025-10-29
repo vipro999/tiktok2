@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
 
     // TikAPI docs: GET https://api.tikapi.io/user/info?username=<username>
     // Header: X-API-KEY: <your_key>
-    const url = `https://api.tikapi.io/user/info?username=${encodeURIComponent(username)}`;
+   const url = `https://api.tikapi.io/public/user/info/${encodeURIComponent(username)}`;
+
 
     const apiResp = await fetch(url, {
       method: 'GET',
