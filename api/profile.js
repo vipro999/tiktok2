@@ -1,5 +1,5 @@
 // api/profile.js
-// TikTok user info – dùng public API của LiveCounts (phiên bản ổn định 2025)
+// Sử dụng public API Việt Nam ổn định (tiktok.fullstack.edu.vn)
 
 const fetch = require("node-fetch");
 
@@ -11,8 +11,8 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // ✅ API chính xác đang hoạt động
-    const url = `https://tiktok.livecounts.io/user/${encodeURIComponent(username)}`;
+    // ✅ API công khai: không cần key, trả về JSON đầy đủ
+    const url = `https://tiktok.fullstack.edu.vn/api/user/${encodeURIComponent(username)}`;
 
     const apiResp = await fetch(url);
     const status = apiResp.status;
@@ -26,19 +26,24 @@ module.exports = async (req, res) => {
     }
 
     const data = JSON.parse(text);
-    const user = data.user || data;
+
+    if (!data || !data.data) {
+      throw new Error("Không lấy được dữ liệu người dùng");
+    }
+
+    const user = data.data.user || {};
+    const stats = user.stats || {};
 
     const result = {
       username: user.uniqueId || username,
       display_name: user.nickname || user.uniqueId,
-      avatar_url: user.avatarLarger || user.avatarThumb || user.avatar || null,
+      avatar_url:
+        user.avatarLarger || user.avatarThumb || user.avatar || null,
       follower_count:
-        (user.stats && user.stats.followerCount) ||
-        user.followerCount ||
-        0,
+        stats.followerCount || stats.fans || user.followerCount || 0,
     };
 
-    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=300");
     return res.status(200).json(result);
   } catch (err) {
     console.error("Server error:", err);
