@@ -1,0 +1,12 @@
+{
+  "name": "tiktok-profile-lookup",
+  "version": "1.0.0",
+  "description": "Static site + Vercel function to fetch TikTok profile via TikAPI",
+  "main": "api/profile.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}

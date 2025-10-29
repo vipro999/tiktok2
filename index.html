@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tra thông tin TikTok</title>
+  <style>
+    :root{--accent:#0077cc}
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:28px auto;max-width:720px;padding:16px}
+    h1{margin-bottom:6px}
+    .row{display:flex;gap:8px;align-items:center}
+    input{flex:1;padding:10px;border:1px solid #e3e3e3;border-radius:10px;font-size:1rem}
+    button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+    .card{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid #eee;border-radius:12px;margin-top:16px}
+    img.avatar{width:72px;height:72px;border-radius:50%;object-fit:cover;background:#f5f5f5}
+    .meta{display:flex;flex-direction:column}
+    .small{font-size:0.9rem;color:#666}
+    .error{color:#b00020;margin-top:12px}
+    .loading{margin-top:12px;color:#444}
+    @media (max-width:480px){ .row{flex-direction:column;align-items:stretch} button{width:100%} img.avatar{width:56px;height:56px} }
+  </style>
+</head>
+<body>
+  <h1>Tra thông tin TikTok</h1>
+  <p class="small">Nhập username (không kèm @). Ví dụ: <code>example.user</code></p>
+
+  <div class="row">
+    <input id="username" placeholder="Nhập TikTok username (không kèm @)" aria-label="TikTok username"/>
+    <button id="btn">Lấy</button>
+  </div>
+
+  <div id="output" aria-live="polite"></div>
+
+  <script>
+    const btn = document.getElementById('btn');
+    const out = document.getElementById('output');
+
+    async function lookup(username){
+      out.innerHTML = '<div class="loading">Đang tải…</div>';
+      try {
+        const res = await fetch(`/api/profile?username=${encodeURIComponent(username)}`);
+        if (!res.ok) {
+          const txt = await res.text();
+          out.innerHTML = `<div class="error">Lỗi server: ${res.status} ${txt}</div>`;
+          return;
+        }
+        const data = await res.json();
+        if (data.error) {
+          out.innerHTML = `<div class="error">${data.error}</div>`;
+          return;
+        }
+
+        out.innerHTML = `
+          <div class="card" role="region">
+            <img class="avatar" src="${data.avatar_url || ''}" alt="Avatar ${data.username || ''}" />
+            <div class="meta">
+              <strong>${data.display_name || data.username || '—'}</strong>
+              <div class="small">@${data.username || '—'}</div>
+              <div class="small">Followers: ${typeof data.follower_count === 'number' ? data.follower_count.toLocaleString() : (data.follower_count ?? '—')}</div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        out.innerHTML = `<div class="error">Lỗi: ${err.message}</div>`;
+      }
+    }
+
+    btn.addEventListener('click', () => {
+      const username = document.getElementById('username').value.trim();
+      out.innerHTML = '';
+      if (!username) { out.innerHTML = '<div class="error">Vui lòng nhập username</div>'; return; }
+      lookup(username);
+    });
+
+    document.getElementById('username').addEventListener('keydown', (e)=> {
+      if (e.key === 'Enter') btn.click();
+    });
+  </script>
+</body>
+</html>
