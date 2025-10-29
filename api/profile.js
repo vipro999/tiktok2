@@ -1,5 +1,5 @@
 // api/profile.js
-// Sử dụng public API Việt Nam ổn định (tiktok.fullstack.edu.vn)
+// Lấy thông tin TikTok user trực tiếp từ trang web công khai (không cần API key)
 
 const fetch = require("node-fetch");
 
@@ -11,42 +11,45 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // ✅ API công khai: không cần key, trả về JSON đầy đủ
-    const url = `https://tiktok.fullstack.edu.vn/api/user/${encodeURIComponent(username)}`;
+    const url = `https://www.tiktok.com/@${encodeURIComponent(username)}`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        Accept: "text/html",
+      },
+    });
 
-    const apiResp = await fetch(url);
-    const status = apiResp.status;
-    const text = await apiResp.text();
+    const html = await response.text();
 
-    if (!apiResp.ok) {
-      console.error("API error:", status, text);
-      return res
-        .status(502)
-        .json({ error: `Third-party API lỗi: ${status}`, details: text });
+    if (!response.ok || !html.includes('SIGI_STATE')) {
+      return res.status(404).json({
+        error: "Không tìm thấy người dùng hoặc TikTok chặn truy cập",
+      });
     }
 
-    const data = JSON.parse(text);
-
-    if (!data || !data.data) {
-      throw new Error("Không lấy được dữ liệu người dùng");
+    // Trích xuất JSON nhúng trong HTML
+    const jsonMatch = html.match(/<script id="SIGI_STATE" type="application\/json">(.*?)<\/script>/);
+    if (!jsonMatch) {
+      throw new Error("Không trích xuất được dữ liệu TikTok");
     }
 
-    const user = data.data.user || {};
-    const stats = user.stats || {};
+    const data = JSON.parse(jsonMatch[1]);
+    const userData = data.UserModule.users[username.toLowerCase()] || {};
 
     const result = {
-      username: user.uniqueId || username,
-      display_name: user.nickname || user.uniqueId,
-      avatar_url:
-        user.avatarLarger || user.avatarThumb || user.avatar || null,
-      follower_count:
-        stats.followerCount || stats.fans || user.followerCount || 0,
+      username: userData.uniqueId || username,
+      display_name: userData.nickname || username,
+      avatar_url: userData.avatarLarger || null,
+      follower_count: userData.stats?.followerCount || 0,
     };
 
-    res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=300");
-    return res.status(200).json(result);
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=120");
+    res.status(200).json(result);
   } catch (err) {
     console.error("Server error:", err);
-    return res.status(500).json({ error: err.message || "Lỗi server nội bộ" });
+    res
+      .status(500)
+      .json({ error: err.message || "Lỗi server nội bộ khi lấy dữ liệu TikTok" });
   }
 };
